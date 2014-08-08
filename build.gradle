@@ -1,0 +1,139 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+sourceCompatibility="1.6"
+
+repositories {
+    maven {
+        name "cobra"
+        url "http://cobra.cs.uni-duesseldorf.de/artifactory/repo"
+    }
+}
+
+configurations.all { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
+
+dependencies {
+    compile group: 'de.prob', name: 'de.prob.core.kernel', version: '2.0.0-milestone-15-SNAPSHOT', changing: true
+}
+
+mainClassName = "de.prob.Main"
+
+def targets = ["linux32","linux64","leopard64","win32"]
+
+def download(address,target) {
+      def file = new FileOutputStream(target)
+      def out = new BufferedOutputStream(file)
+      out << new URL(address).openStream()
+      out.close()
+}
+
+def download_cspm(target) {
+  
+  def downloadFile = target
+  def postfix = ""
+  if(target == "win32") {
+    downloadFile = "windows"
+    postfix = ".exe"
+  }
+  
+  def nwurl = "http://nightly.cobra.cs.uni-duesseldorf.de/cspmf/cspmf-"+downloadFile
+  print "Downloading cspm for "+target+" ..."
+  def dir = "./cli/"+target+"_cli/cli/lib/cspmf"+postfix
+  download(nwurl,dir)
+  new File(dir).setExecutable(true)
+  println " done."
+
+}
+
+def download_cli(target) {
+
+   def downloadFile = target
+
+   def dir = "./cli/"+target+"_cli/cli"
+   def d = new File(dir)
+     delete file(d)
+   d.mkdirs();
+
+   def nwurl = "http://nightly.cobra.cs.uni-duesseldorf.de/cli/probcli_"+downloadFile+".zip"
+   print "Downloading cli for "+target+" ..."
+   def targetzip = dir+"probcli.zip"
+   download(nwurl,targetzip)
+   println " done."
+    FileTree zip = zipTree(targetzip)
+    println "Unzipping "+zip
+     copy {
+      from zip 
+      into dir
+     }
+     delete file(targetzip)
+
+  }
+
+
+task download_target << {
+  def target = System.getProperty("target")?.toLowerCase() 
+  download_cli(target);
+  download_cspm(target);
+}
+
+task download_target_all << {
+  print "Download targets ..."
+  targets.each { target ->
+    download_cli(target);
+    download_cspm(target);
+  }
+
+}
+
+task patches << {
+    ant.patch(patchfile: 'patches/BMotionStudio.patch', originalfile: 'build/install/BMotionStudio/bin/BMotionStudio', failonerror:'true' )
+    ant.patch(patchfile: 'patches/BMotionStudio_bat.patch', originalfile: 'build/install/BMotionStudio/bin/BMotionStudio.bat', failonerror:'true' )
+}
+
+task prepareDist(dependsOn: [installApp,download_target,jar,patches]) << {
+ //delete("build/install/BMotionStudio/bin/BMotionStudio.bat")
+}
+
+task zipApp(type:Zip,dependsOn: [prepareDist]) {
+ from ('build/install/BMotionStudio')
+ from ('cli')
+ from ('root')
+}
+
+targets.each() { target ->
+  task "zip_$target"(type: Zip) {
+    archiveName = 'BMotionStudio-'+target+'.zip'
+    def clifile = 'cli/'+target+'_cli'
+    from ('build/install/BMotionStudio')
+    from (clifile)
+    from ('build/root')
+  }
+}
+
+task cleanAll << {
+  delete("build")
+  delete("cli")
+}
+
+task getTemplate << {
+  copy {
+    from "root"
+    into "$buildDir/root/root/"
+   }
+}
+
+// Very ugly ... Someone knows a better way???
+startScripts {
+  doLast {
+    def toolid = project.hasProperty('tool') ? "&tool="+tool : "&tool="+"BAnimation"
+    def unixTemplateParameter = project.hasProperty('rootfile') ? "\${APP_HOME}/root/"+rootfile+toolid : "\$1"
+    def winTemplateParameter = project.hasProperty('rootfile') ? "%APP_HOME%/root/"+rootfile+toolid : "\$1"
+    def standaloneParameter = project.hasProperty('standalone') ? "-standalone" : ""
+    unixScript.text = unixScript.text.replace('exec "$JAVACMD" "${JVM_OPTS[@]}" -classpath "$CLASSPATH" de.prob.Main "$@"', 'exec "$JAVACMD" "${JVM_OPTS[@]}" -classpath "$CLASSPATH" -Dprob.home=${APP_HOME}/cli/ -Dbms.home=${APP_HOME}/root/ de.prob.Main -browser "bms/?template='+unixTemplateParameter+'" -local -s '+standaloneParameter+' "$@"')
+    windowsScript.text = windowsScript.text.replace('"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %B_MOTION_STUDIO_OPTS%  -classpath "%CLASSPATH%" de.prob.Main %CMD_LINE_ARGS%','"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %B_MOTION_STUDIO_OPTS%  -classpath "%CLASSPATH%" -Dprob.home=%APP_HOME%/cli/ -Dbms.home=%APP_HOME%/root/ de.prob.Main -browser "bms/?template='+winTemplateParameter+'" -local -s '+standaloneParameter+' %CMD_LINE_ARGS%')
+  }
+}
+
+task buildAll(dependsOn: [cleanAll,installApp,download_target_all,getTemplate,tasks.withType( Zip ).matching { task -> task.name.startsWith( 'zip_' ) }]) << {
+}
