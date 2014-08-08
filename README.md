@@ -2,12 +2,12 @@
 
 (1) Create a folder named "root" and put your template files into this folder.
 
-(2) run 'gradle -Prootfile=XXX buildAll' 
+(2) run 'gradle -Pstandalone -Prootfile=XXX buildAll' 
     where XXX is the name of the template file in the root folder (e.g. template.html)
 
 If you don't have gradle installed, you can use the gradlew script provided.
 
-./gradlew -Prootfile=XXX buildAll
+./gradlew -Pstandalone -Prootfile=XXX buildAll
 
 will work without a gradle installation on your computer.
 
