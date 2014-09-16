@@ -14,7 +14,7 @@ repositories {
 configurations.all { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
 
 dependencies {
-    compile group: 'de.prob', name: 'de.prob.core.kernel', version: '2.0.0-milestone-15-SNAPSHOT', changing: true
+    compile group: 'de.prob2', name: 'de.prob2.kernel', version: '2.0.0-milestone-16-SNAPSHOT', changing: true
 }
 
 mainClassName = "de.prob.Main"
@@ -127,8 +127,8 @@ task getTemplate << {
 startScripts {
   doLast {
     def toolid = project.hasProperty('tool') ? "&tool="+tool : "&tool="+"BAnimation"
-    def unixTemplateParameter = project.hasProperty('rootfile') ? "\${APP_HOME}/root/"+rootfile+toolid : "\$1"
-    def winTemplateParameter = project.hasProperty('rootfile') ? "%APP_HOME%/root/"+rootfile+toolid : "%1%"
+    def unixTemplateParameter = project.hasProperty('rootfile') ? "\${APP_HOME}/root/"+rootfile+toolid : "\$1"+toolid
+    def winTemplateParameter = project.hasProperty('rootfile') ? "%APP_HOME%/root/"+rootfile+toolid : "%1%"+toolid
     def standaloneParameter = project.hasProperty('standalone') ? "-standalone" : ""
     unixScript.text = unixScript.text.replace('exec "$JAVACMD" "${JVM_OPTS[@]}" -classpath "$CLASSPATH" de.prob.Main "$@"', 'exec "$JAVACMD" "${JVM_OPTS[@]}" -classpath "$CLASSPATH" -Dprob.home=${APP_HOME}/cli/ -Dbms.home=${APP_HOME}/root/ de.prob.Main -browser "bms/?template='+unixTemplateParameter+'" -local -s '+standaloneParameter+' "$@"')
     windowsScript.text = windowsScript.text.replace('"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %B_MOTION_STUDIO_OPTS%  -classpath "%CLASSPATH%" de.prob.Main %CMD_LINE_ARGS%','"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %B_MOTION_STUDIO_OPTS%  -classpath "%CLASSPATH%" -Dprob.home=%APP_HOME%/cli/ -Dbms.home=%APP_HOME%/root/ de.prob.Main -browser "bms/?template='+winTemplateParameter+'" -local -s '+standaloneParameter)
