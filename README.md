@@ -1,3 +1,5 @@
+Please note: This repository is obsolete! Please consult the new repository: https://github.com/ladenberger/bmotion-prob-standalone
+
 # Building the binary
 
 (1) Create a folder named "root" and put your template files into this folder.
